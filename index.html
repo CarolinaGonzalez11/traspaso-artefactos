@@ -3,7 +3,10 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Escaneo QR - Traspaso Artefactos</title>
+
+  <!-- ✅ ZXing (Browser) - versión estable -->
   <script src="https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js"></script>
+
   <style>
     body{font-family:system-ui;margin:0;background:#f6f7fb;color:#111827;font-size:18px}
     header{background:#fff;border-bottom:1px solid #e6e8ef;padding:12px 14px;display:flex;align-items:center;gap:12px}
@@ -16,94 +19,108 @@
     input,select{width:100%;padding:12px;font-size:18px;border-radius:12px;border:1px solid #e6e8ef;margin-top:8px}
     label{font-weight:800;display:block;margin-top:12px}
     .big{font-size:26px;font-weight:900;word-break:break-all}
-    .ok{color:#027a48;font-weight:900}
-    .err{color:#b42318;font-weight:900}
+    .ok{color:#027a48;font-weight:900;white-space:pre-wrap}
+    .err{color:#b42318;font-weight:900;white-space:pre-wrap}
+    .hint{color:#667085;font-weight:700;font-size:14px}
   </style>
 </head>
+
 <body>
-  <header>
-    <img src="https://www.municipalidadmaipu.cl/img/escudo_maipu.32d4bc5a.png" alt="Maipú">
-    <div>
-      <div style="font-weight:900;color:#0b4aa2">Ilustre Municipalidad de Maipú</div>
-      <div style="font-size:14px;color:#667085;font-weight:700">DIPRESEC · Escaneo QR</div>
+<header>
+  <img src="https://www.municipalidadmaipu.cl/img/escudo_maipu.32d4bc5a.png" alt="Maipú">
+  <div>
+    <div style="font-weight:900;color:#0b4aa2">Ilustre Municipalidad de Maipú</div>
+    <div style="font-size:14px;color:#667085;font-weight:700">DIPRESEC · Escaneo QR</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="msg" class="hint"></div>
+
+  <div class="card">
+    <button class="btn" onclick="start()">📷 Iniciar escáner</button>
+    <button class="btn light" onclick="stop()">Cerrar cámara</button>
+
+    <video id="video" playsinline></video>
+
+    <div style="margin-top:12px">
+      <div style="font-weight:900">Último QR detectado:</div>
+      <div id="last" class="big">—</div>
     </div>
-  </header>
 
-  <div class="wrap">
-    <div id="msg"></div>
-
-    <div class="card">
-      <button class="btn" onclick="start()">📷 Iniciar escáner</button>
-      <button class="btn light" onclick="stop()">Cerrar cámara</button>
-      <video id="video" playsinline></video>
-
-      <div style="margin-top:12px">
-        <div style="font-weight:900">Último QR detectado:</div>
-        <div id="last" class="big">—</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <label>Turno</label>
-      <select id="turno">
-        <option value="">Selecciona...</option>
-        <option>1</option><option>2</option><option>3</option>
-      </select>
-
-      <label>Acción</label>
-      <select id="accion">
-        <option value="">Selecciona...</option>
-        <option>Entrega</option>
-        <option>Recepción</option>
-        <option>Cambio</option>
-        <option>Observación</option>
-      </select>
-
-      <label>Funcionario receptor</label>
-      <input id="receptor" placeholder="Ej: Juan Pérez">
-
-      <label>Estado general</label>
-      <select id="estado">
-        <option value="">Selecciona...</option>
-        <option>OK</option>
-        <option>Con observación</option>
-        <option>Dañado</option>
-        <option>Falta accesorio</option>
-        <option>Batería baja</option>
-      </select>
-
-      <button class="btn" onclick="registrar()">Registrar este artefacto</button>
-      <div style="color:#667085;font-weight:700;font-size:14px">
-        * Este modo registra 1 artefacto por vez (rápido en terreno). Luego repites escaneo.
-      </div>
+    <div class="hint" style="margin-top:10px">
+      Consejo: usa un QR con texto simple (ej: <b>RAD-001</b>) para la primera prueba.
     </div>
   </div>
 
+  <div class="card">
+    <label>Turno</label>
+    <select id="turno">
+      <option value="">Selecciona...</option>
+      <option>1</option><option>2</option><option>3</option>
+    </select>
+
+    <label>Acción</label>
+    <select id="accion">
+      <option value="">Selecciona...</option>
+      <option>Entrega</option>
+      <option>Recepción</option>
+      <option>Cambio</option>
+      <option>Observación</option>
+    </select>
+
+    <label>Funcionario receptor</label>
+    <input id="receptor" placeholder="Ej: Juan Pérez">
+
+    <label>Estado general</label>
+    <select id="estado">
+      <option value="">Selecciona...</option>
+      <option>OK</option>
+      <option>Con observación</option>
+      <option>Dañado</option>
+      <option>Falta accesorio</option>
+      <option>Batería baja</option>
+    </select>
+
+    <button class="btn" onclick="registrar()">Registrar este artefacto</button>
+    <div class="hint">
+      Este modo registra <b>1 artefacto por vez</b> (rápido en terreno). Luego repites escaneo.
+    </div>
+  </div>
+</div>
+
 <script>
-  // ✅ Pega aquí tu URL de Apps Script "API" (la vamos a crear abajo)
-  const API_URL = "https://script.google.com/macros/s/AKfycbxrLxs_oc3K-utFyH81EqzRxZRU2HkC0WqdxsXE_vsWwFCSb9UFLbdjF8vzEnYBco28/exec";
+  // ✅ Pega aquí tu URL del Apps Script (WebApp /exec)
+  const API_URL = "PEGA_AQUI_TU_URL_DE_API";
 
   let reader = null;
   let active = false;
-  let streamTrack = null;
   let lastText = "";
 
   function show(text, type="ok"){
-    const m = document.getElementById("msg");
-    m.className = type === "ok" ? "ok" : "err";
-    m.textContent = text;
+    const el = document.getElementById("msg");
+    el.className = type === "ok" ? "ok" : "err";
+    el.textContent = text;
   }
 
   async function start(){
     try{
+      // ✅ Validación: ZXing cargado
+      if (!window.ZXing || !window.ZXing.BrowserMultiFormatReader){
+        show("ZXing no cargó. Revisa que el <script src> esté correcto y que tengas internet.", "err");
+        return;
+      }
+
       const video = document.getElementById("video");
-      reader = new ZXing.BrowserMultiFormatReader();
+      reader = new window.ZXing.BrowserMultiFormatReader();
       active = true;
 
-      // abre cámara trasera preferente
+      // Preferir cámara trasera (última videoinput suele ser la trasera)
       const devices = await navigator.mediaDevices.enumerateDevices();
       const cams = devices.filter(d => d.kind === "videoinput");
       const deviceId = cams.length ? cams[cams.length - 1].deviceId : null;
+
+      show("Abriendo cámara...", "ok");
 
       await reader.decodeFromVideoDevice(deviceId, video, (result, err) => {
         if (!active) return;
@@ -114,8 +131,11 @@
       });
 
       show("Escáner listo. Apunta al QR.", "ok");
+
     }catch(e){
-      show("No se pudo abrir cámara: " + (e.name || e.message), "err");
+      // ✅ Mostrar error completo
+      const msg = `${e.name || "Error"}: ${e.message || e}`.trim();
+      show("No se pudo abrir cámara\n" + msg, "err");
     }
   }
 
@@ -129,27 +149,31 @@
   }
 
   async function registrar(){
-    const turno = document.getElementById("turno").value;
-    const accion = document.getElementById("accion").value;
-    const receptor = document.getElementById("receptor").value.trim();
-    const estado = document.getElementById("estado").value;
-
-    if (!lastText) return show("No hay QR detectado aún.", "err");
-    if (!turno || !accion || !receptor || !estado) return show("Faltan campos (turno, acción, receptor, estado).", "err");
-
-    const payload = { turno, accion, receptor, estado, id_artefacto: lastText };
-
     try{
+      const turno = document.getElementById("turno").value;
+      const accion = document.getElementById("accion").value;
+      const receptor = document.getElementById("receptor").value.trim();
+      const estado = document.getElementById("estado").value;
+
+      if (!lastText) return show("No hay QR detectado aún.", "err");
+      if (!turno || !accion || !receptor || !estado) return show("Faltan campos (turno, acción, receptor, estado).", "err");
+      if (API_URL.includes("PEGA_AQUI")) return show("Falta configurar API_URL en el HTML.", "err");
+
+      const payload = { turno, accion, receptor, estado, id_artefacto: lastText };
+
       const r = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type":"application/json" },
         body: JSON.stringify(payload)
       });
+
       const data = await r.json();
       if (!data.ok) throw new Error(data.error || "Error");
+
       show("Registrado OK: " + lastText, "ok");
+
     }catch(e){
-      show("Error registrando: " + (e.message || e), "err");
+      show("Error registrando\n" + (e.message || e), "err");
     }
   }
 </script>
