@@ -2,9 +2,10 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Traspaso de Artefactos - DIPRESEC</title>
+  <base target="_top">
+  <title>Traspaso de artefactos - DIPRESEC</title>
 
-  <!-- ZXingBrowser -->
+  <!-- ✅ ZXingBrowser (cámara/QR) -->
   <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
 
   <style>
@@ -119,7 +120,7 @@
     <input id="assetInput" placeholder="Ej: RAD-023" autocapitalize="characters">
     <button class="btn light" type="button" onclick="addAsset()">Agregar artefacto</button>
 
-    <div class="hint">El escaneo agrega el ID automáticamente. También puedes copiar/pegar el ID si lo necesitas.</div>
+    <div class="hint">Al escanear, se agrega automáticamente y se cierra la cámara.</div>
 
     <div id="chips" class="chips"></div>
 
@@ -130,7 +131,7 @@
     <div class="hint">Firma con el dedo. Si te equivocas, presiona “Limpiar firma”.</div>
     <button class="btn light" type="button" onclick="clearSignature()">Limpiar firma</button>
 
-    <button class="btn" type="button" onclick="guardar()">GUARDAR</button>
+    <button class="btn" type="button" onclick="guardar()">GUARDAR TRASPASO</button>
   </div>
 
   <!-- CONSULTA -->
@@ -163,14 +164,14 @@
   <div class="box">
     <h3>Escanear QR</h3>
     <video id="video" playsinline></video>
-    <div class="hint">Apunta al QR del artefacto. Al detectar el código, se agregará automáticamente.</div>
+    <div class="hint">Al detectar el QR, se agregará automáticamente y se cerrará la cámara.</div>
     <button class="btn secondary" type="button" onclick="closeScanner()">Cerrar</button>
   </div>
 </div>
 
 <script>
-  // 🔴 Pega aquí tu WebApp /exec (Apps Script)
-  const API_URL = "https://script.google.com/macros/s/AKfycbz1r2IrN0vf4vAVSrlm7GjTF-UcVuHiilUZql8A39G23Fr49xL-eK-FHr61bsLzWJHs/exec";
+  // ✅ PEGA AQUÍ TU URL /exec de Apps Script
+  const API_URL = "https://script.google.com/macros/s/AKfycbygwOhSmGRcj_5qccDEgPe4L-op_NG6B7ciO3No6_BJ1eg70OCBxbr4IdlUvzGs6w/exec";
 
   let catalogos = null;
   let assets = [];
@@ -217,13 +218,18 @@
 
   async function init(){
     try{
+      if (!API_URL || API_URL.includes("PEGA_AQUI")) {
+        showMessage("Falta configurar API_URL en el index.html (URL /exec de Apps Script).", "err");
+        return;
+      }
       const data = await apiGet({ action:"getCatalogos" });
+      if (data.ok === false) throw new Error(data.error || "Error");
       catalogos = data;
       fillSelect("funcReceptor", ["", ...(data.funcionarios||[])]);
       fillSelect("funcEntrega",  ["", ...(data.funcionarios||[])]);
       showMessage("Listo para registrar.", "ok");
     }catch(e){
-      showMessage("No se pudieron cargar catálogos. Revisa API_URL / permisos.", "err");
+      showMessage("No se pudieron cargar catálogos. Revisa API_URL / permisos.\n" + (e.message || e), "err");
     }
   }
 
@@ -279,15 +285,18 @@
     }
   }
 
-  /** Firma **/
+  /***************
+   * FIRMA (evitar que se borre)
+   ***************/
   const canvas = document.getElementById("sig");
   const ctx = canvas.getContext("2d");
   let drawing = false;
 
-  function resizeCanvas(){
+  function initCanvasOnce(){
+    // set tamaño una sola vez (no en resize), para que NO se borre la firma
     const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(rect.width);
-    canvas.height = Math.floor(rect.height);
+    canvas.width  = Math.floor(rect.width);
+    canvas.height = 200; // fijo para estabilidad
     ctx.lineWidth = 4;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#111827";
@@ -356,28 +365,34 @@
     try{
       showMessage("Guardando...", "ok");
       const res = await apiPost(payload);
-      if (!res.ok) throw new Error(res.error || "Error");
-      showMessage(`Guardado OK. Operación: ${res.op_id}`, "ok");
+      if (res.ok === false) throw new Error(res.error || "Error");
+      showMessage(`✔ Traspaso guardado OK.\nOperación: ${res.op_id}`, "ok");
+
+      // Limpieza
       assets = [];
       renderChips();
       document.getElementById("assetInput").value = "";
       document.getElementById("observacion").value = "";
       clearSignature();
+
     }catch(e){
       showMessage("Error al guardar: " + (e.message || e), "err");
     }
   }
 
-  /** Consulta **/
+  /***************
+   * CONSULTA
+   ***************/
   async function loadUltimos(){
     try{
       const res = await apiGet({ action:"getUltimosTresTurnos" });
+      if (res.ok === false) throw new Error(res.error || "Error");
       opsRows = res.rows || [];
       renderTable();
       document.getElementById("detalle").innerHTML = "";
       showMessage("Tabla actualizada.", "ok");
     }catch(e){
-      showMessage("No se pudo cargar la tabla. Revisa API_URL.", "err");
+      showMessage("No se pudo cargar la tabla.\n" + (e.message || e), "err");
     }
   }
 
@@ -412,6 +427,7 @@
   async function verDetalle(opId){
     try{
       const res = await apiGet({ action:"getDetalleOperacion", op_id: opId });
+      if (res.ok === false) throw new Error(res.error || "Error");
       const rows = res.rows || [];
       let html = `<div class="card"><h3 style="margin:6px 0 10px;">Detalle ${opId}</h3>`;
       if (rows.length === 0) html += `<div class="hint">Sin detalle.</div>`;
@@ -433,11 +449,13 @@
       html += `</div>`;
       document.getElementById("detalle").innerHTML = html;
     }catch(e){
-      showMessage("No se pudo cargar detalle.", "err");
+      showMessage("No se pudo cargar detalle.\n" + (e.message || e), "err");
     }
   }
 
-  /** Scanner **/
+  /***************
+   * SCANNER (cierra automáticamente)
+   ***************/
   const modal = document.getElementById("scannerModal");
   const videoEl = document.getElementById("video");
   let zxingReader = null;
@@ -461,7 +479,13 @@
 
       await zxingReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
         if (!scanning) return;
-        if (result) handleScanText(result.getText());
+        if (result) {
+          handleScanText(result.getText());
+          // ✅ vibración para feedback (si está disponible)
+          if (navigator.vibrate) navigator.vibrate(120);
+          // ✅ cerrar cámara automáticamente (menos confusión)
+          closeScanner();
+        }
       });
 
     }catch(e){
@@ -475,6 +499,7 @@
     if (!id) return;
     document.getElementById("assetInput").value = id;
     addAsset();
+    showMessage("QR leído: " + id, "ok");
   }
 
   function closeScanner(){
@@ -489,10 +514,9 @@
   }
 
   window.addEventListener("load", ()=>{
-    resizeCanvas();
+    initCanvasOnce();
     init();
   });
-  window.addEventListener("resize", resizeCanvas);
 </script>
 
 </body>
