@@ -5,8 +5,15 @@
   <title>Escaneo QR - Traspaso Artefactos</title>
 
   <!-- ✅ ZXing (Browser) - versión estable -->
-  <script src="https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js"></script>
+  <script>
+    // Fallback si jsDelivr falla
+    if (!window.ZXing) {
+      const s = document.createElement("script");
+      s.src = "https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js";
+      document.head.appendChild(s);
+    }
+  </script>
   <style>
     body{font-family:system-ui;margin:0;background:#f6f7fb;color:#111827;font-size:18px}
     header{background:#fff;border-bottom:1px solid #e6e8ef;padding:12px 14px;display:flex;align-items:center;gap:12px}
