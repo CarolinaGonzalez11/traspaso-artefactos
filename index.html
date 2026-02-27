@@ -209,11 +209,15 @@
 
   async function apiPost(payload){
     const r = await fetch(API_URL, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify(payload)
+      method: "POST",
+      // ✅ SIN headers → evita preflight OPTIONS
+      body: JSON.stringify(payload),
     });
-    return await r.json();
+  
+    // Si Apps Script responde texto JSON, lo parseamos así:
+    const text = await r.text();
+    try { return JSON.parse(text); }
+    catch { return { ok:false, error:"Respuesta no-JSON: " + text }; }
   }
 
   async function init(){
